@@ -1,0 +1,62 @@
+
+version: '3.9'
+networks:
+  jenk_gitlab_net:
+    name: jenk_gitlab_net
+volumes:
+  git_lab_config:
+    name: cowsay-jenkins_git_lab_config
+  jenkins_home:
+    name: cowsay-jenkins_jenkins_home
+  git_lab_data:
+    name: cowsay-jenkins_git_lab_data
+  git_lab_logs:
+    name: cowsay-jenkins_git_lab_logs
+  artifactory_volume:
+    name: artifactory_volume
+services:
+  gitlab:
+    networks:
+      - jenk_gitlab_net
+    image: gitlab/gitlab-ce:latest
+    container_name: gitlab  
+    environment:
+      GITLAB_OMNIBUS_CONFIG: |
+        external_url 'http://127.0.0.1:8929'
+        gitlab_rails['gitlab_shell_ssh_port'] = 2224
+    ports:
+      - '8929:8929'
+      - '2224:22'
+    restart: always
+    volumes:
+      - git_lab_config:/etc/gitlab
+      - git_lab_logs:/var/log/gitlab
+      - git_lab_data:/var/opt/gitlab      
+    shm_size: '256m'
+    
+  jenkins:
+    networks:
+      - jenk_gitlab_net
+    build:
+      context: /home/liz/Studies/lab/
+    container_name: jenkins
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock
+      - jenkins_home:/var/jenkins_home
+      - /home/liz/.aws:/var/jenkins_home/.aws
+    ports:
+      - '8080:8080'
+      - '50000:50000'
+    restart: on-failure
+  
+  artifactory:
+    image: releases-docker.jfrog.io/jfrog/artifactory-oss:6.23.13
+    networks:
+      - jenk_gitlab_net
+    container_name: artifactory
+    volumes:
+      - artifactory_volume:/var/opt/jfrog/artifactory
+      - ~/.m2/repository:/root/.m2/repository
+    ports:
+      - '8081:8081'
+    restart: on-failure
